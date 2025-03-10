@@ -1,5 +1,6 @@
-aliyun-python-sdk-core
-aliyun-python-sdk-cms
-python-docx
-pandas
-matplotlib
+aliyun-python-sdk-core>=2.14.0
+aliyun-python-sdk-cms>=3.0.1
+python-docx>=0.8.11
+pandas>=2.2.0
+matplotlib>=3.8.2
+python-dotenv>=1.0.1

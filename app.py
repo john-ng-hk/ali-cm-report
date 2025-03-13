@@ -12,14 +12,95 @@ from docx.enum.style import WD_STYLE_TYPE
 from datetime import timezone
 import pytz
 from dotenv import load_dotenv
+import csv
 
 # Load environment variables
 load_dotenv()
 
-# Configuration - Load from environment variables
-ACCESS_KEY_ID = os.getenv('ALIYUN_ACCESS_KEY_ID')
-ACCESS_KEY_SECRET = os.getenv('ALIYUN_ACCESS_KEY_SECRET')
-REGION_ID = 'cn-hongkong'
+def load_credentials():
+    """Load credentials from AccessKey.csv file"""
+    try:
+        with open('AccessKey.csv', 'r') as file:
+            # Read the first line to check headers
+            first_line = file.readline().strip()
+            print(f"\nCSV Headers found: {first_line}")
+            
+            # Reset file pointer
+            file.seek(0)
+            
+            # Try different possible header formats
+            possible_headers = [
+                ['AccessKeyId', 'AccessKeySecret'],
+                ['access_key_id', 'access_key_secret'],
+                ['Access Key ID', 'Access Key Secret'],
+                ['access key id', 'access key secret']
+            ]
+            
+            reader = csv.DictReader(file)
+            credentials = next(reader)  # Get the first row
+            
+            # Debug print all columns found
+            print("\nColumns found in CSV:")
+            for col in reader.fieldnames:
+                print(f"- {col}")
+            
+            # Try to find credentials using different possible column names
+            access_key_id = None
+            access_key_secret = None
+            
+            for header_pair in possible_headers:
+                if header_pair[0] in credentials and header_pair[1] in credentials:
+                    access_key_id = credentials[header_pair[0]]
+                    access_key_secret = credentials[header_pair[1]]
+                    print(f"\nFound credentials using headers: {header_pair}")
+                    break
+            
+            if not access_key_id or not access_key_secret:
+                # Try direct column access as fallback
+                if len(credentials) >= 2:
+                    access_key_id = list(credentials.values())[0]
+                    access_key_secret = list(credentials.values())[1]
+                    print("\nFound credentials using first two columns")
+            
+            # Debug print found credentials
+            print("\nFound credentials:")
+            print(f"AccessKeyId: {access_key_id if access_key_id else 'Not found'}")
+            print(f"AccessKeySecret: {'*' * len(access_key_secret) if access_key_secret else 'Not found'}")
+            
+            if not access_key_id or not access_key_secret:
+                raise ValueError("Missing credentials in CSV file. Please ensure both AccessKeyId and AccessKeySecret are present.")
+            
+            return {
+                'ACCESS_KEY_ID': access_key_id,
+                'ACCESS_KEY_SECRET': access_key_secret
+            }
+    except FileNotFoundError:
+        raise FileNotFoundError("AccessKey.csv file not found. Please ensure it exists in the current directory.")
+    except Exception as e:
+        raise Exception(f"Error reading AccessKey.csv: {str(e)}")
+
+# Load credentials from AccessKey.csv
+try:
+    credentials = load_credentials()
+    ACCESS_KEY_ID = credentials['ACCESS_KEY_ID']
+    ACCESS_KEY_SECRET = credentials['ACCESS_KEY_SECRET']
+    REGION_ID = 'cn-hongkong'
+    
+    # Validate credentials before creating client
+    if not ACCESS_KEY_ID or not ACCESS_KEY_SECRET:
+        raise ValueError("Invalid credentials: AccessKeyId or AccessKeySecret is empty")
+    
+    print("\nCredentials loaded successfully!")
+except Exception as e:
+    print(f"\nError: {str(e)}")
+    print("\nPlease ensure your AccessKey.csv file:")
+    print("1. Exists in the current directory")
+    print("2. Has the correct column headers: AccessKeyId,AccessKeySecret")
+    print("3. Contains valid credentials")
+    print("\nExample AccessKey.csv format:")
+    print("AccessKeyId,AccessKeySecret")
+    print("your_access_key_id,your_access_key_secret")
+    exit(1)
 
 # Charts directory configuration
 CHARTS_DIR = 'charts'
@@ -75,22 +156,50 @@ RDS_METRICS = {
     }
 }
 
-def calculate_sprint_info(target_date):
+def get_sprint_input():
+    """Get sprint number from user input or return None for automatic calculation"""
+    while True:
+        sprint_input = input("\nEnter sprint number (e.g., 15) or press Enter for automatic calculation: ").strip()
+        
+        if not sprint_input:  # Empty input
+            return None
+            
+        try:
+            sprint_number = int(sprint_input)
+            if sprint_number < 1:
+                print("Sprint number must be positive.")
+                continue
+            return sprint_number
+        except ValueError:
+            print("Please enter a valid number.")
+
+def calculate_sprint_info(target_date, manual_sprint=None):
     """Calculate sprint number and date range based on a reference sprint"""
+    if manual_sprint is not None:
+        # Calculate dates based on manual sprint number
+        sprints_diff = manual_sprint - 15  # Difference from reference sprint
+        sprint_start = SPRINT_15_START + (sprints_diff * SPRINT_DURATION)
+        sprint_start = sprint_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        sprint_end = sprint_start + SPRINT_DURATION - timedelta(days=1)
+        sprint_end = sprint_end.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        return {
+            'sprint_number': manual_sprint,
+            'start_date': sprint_start,
+            'end_date': sprint_end
+        }
+    
+    # Original automatic calculation logic
     if isinstance(target_date, str):
-        # Parse datetime string and extract just the date part
         target_date = datetime.strptime(target_date, '%Y-%m-%d %H:%M:%S').date()
     elif isinstance(target_date, datetime):
         target_date = target_date.date()
     
-    # Convert target_date to datetime with time set to noon to avoid any timezone issues
     target_datetime = datetime.combine(target_date, datetime.min.time().replace(hour=12))
-    
-    # Calculate sprints difference from reference sprint (Sprint 15)
     days_diff = (target_datetime - SPRINT_15_START).days
     sprints_diff = days_diff // SPRINT_DURATION.days
     
-    # Calculate sprint start and end with specific times
     sprint_start = SPRINT_15_START + (sprints_diff * SPRINT_DURATION)
     sprint_start = sprint_start.replace(hour=0, minute=0, second=0, microsecond=0)
     
@@ -234,11 +343,12 @@ def generate_combined_chart(data_dict, metric_type, title, filename, days=14):
     
     return filepath
 
-def create_word_report(report_data, incidents=None, recommendations=None):
+def create_word_report(report_data, incidents=None, recommendations=None, sprint_info=None):
     """Generate Word document report with the new structure"""
-    # Calculate sprint information based on current time
-    current_time = datetime.now()
-    sprint_info = calculate_sprint_info(current_time.strftime('%Y-%m-%d %H:%M:%S'))
+    # Use provided sprint info or calculate based on current time
+    if sprint_info is None:
+        current_time = datetime.now()
+        sprint_info = calculate_sprint_info(current_time.strftime('%Y-%m-%d %H:%M:%S'))
     
     # Format the output filename using the sprint number
     output_file = f'Sprint{sprint_info["sprint_number"]:02d}_Alibaba_Cloud_Resources_Utilization_Report.docx'
@@ -345,10 +455,20 @@ def main():
     # Initialize Alibaba Cloud client
     client = AcsClient(ACCESS_KEY_ID, ACCESS_KEY_SECRET, REGION_ID)
     
-    # Calculate sprint period based on current time
-    sprint_info = calculate_sprint_info(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    # Get manual sprint input if provided
+    manual_sprint = get_sprint_input()
+    
+    # Calculate sprint period based on current time or manual input
+    sprint_info = calculate_sprint_info(
+        datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        manual_sprint
+    )
+    
     start_time = sprint_info['start_date']
     end_time = sprint_info['end_date']
+    
+    print(f"\nGenerating report for Sprint {sprint_info['sprint_number']}")
+    print(f"Period: {start_time.strftime('%Y-%m-%d %H:%M:%S')} to {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Set timezone to Hong Kong
     hk_tz = pytz.timezone('Asia/Hong_Kong')
@@ -425,8 +545,8 @@ def main():
     incidents = None  # Add incidents here if needed
     recommendations = None  # Add recommendations here if needed
     
-    # Generate Word document
-    create_word_report(report_data, incidents, recommendations)
+    # Generate Word document with sprint info
+    create_word_report(report_data, incidents, recommendations, sprint_info)
     
     # Cleanup charts directory
     if os.path.exists(CHARTS_DIR):

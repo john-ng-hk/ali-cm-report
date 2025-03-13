@@ -174,3 +174,6 @@ charts/
 # IDE
 .vscode/
 .idea/
+
+AccessKey.csv
+.DS_Store

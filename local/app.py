@@ -8,8 +8,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from docx import Document
 from docx.shared import Inches, Pt
-from docx.enum.style import WD_STYLE_TYPE
-from datetime import timezone
 import pytz
 from dotenv import load_dotenv
 import csv
@@ -112,20 +110,20 @@ SPRINT_DURATION = timedelta(days=14)  # Each sprint is 14 days
 # Instance Configuration
 INSTANCES = {
     'DEV': {
-        'web': [{'id': 'i-j6c5wy4k8s5yc4rf9w0x', 'name': 'DEV-WEB'}],
-        'app': [{'id': 'i-j6c41gv56318e7e92otl', 'name': 'DEV-APP'}],
-        'rds': [{'id': 'rm-3ns01fc55d40c405n', 'name': 'DEV-RDS'}]
+        'web': [{'id': 'i-xxx', 'name': 'DEV-WEB'}],
+        'app': [{'id': 'i-xxx', 'name': 'DEV-APP'}],
+        'rds': [{'id': 'rm-xxx', 'name': 'DEV-RDS'}]
     },
     'UAT': {
         'web': [
-            {'id': 'i-j6cek76l1a24x1z977ph', 'name': 'UAT-WEB-1'},
-            {'id': 'i-j6c0snzlwa9wqhnxkfiv', 'name': 'UAT-WEB-2'}
+            {'id': 'i-xxx', 'name': 'UAT-WEB-1'},
+            {'id': 'i-xxx', 'name': 'UAT-WEB-2'}
         ],
         'app': [
-            {'id': 'i-j6c0snzlwa9wpi5djfwi', 'name': 'UAT-APP-1'},
-            {'id': 'i-j6c9j3mj10whyjngihr3', 'name': 'UAT-APP-2'}
+            {'id': 'i-xxx', 'name': 'UAT-APP-1'},
+            {'id': 'i-xxx', 'name': 'UAT-APP-2'}
         ],
-        'rds': [{'id': 'rm-3nsw90ma287rjfxeh', 'name': 'UAT-RDS'}]
+        'rds': [{'id': 'rm-xxx', 'name': 'UAT-RDS'}]
     }
 }
 

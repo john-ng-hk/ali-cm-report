@@ -177,3 +177,7 @@ charts/
 
 AccessKey.csv
 .DS_Store
+
+alicloud/*
+!alicloud/app.py
+!alicloud/requirements.txt

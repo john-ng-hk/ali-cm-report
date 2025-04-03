@@ -9,11 +9,9 @@ import matplotlib.pyplot as plt
 from docx import Document
 from docx.shared import Inches, Pt
 import pytz
-from dotenv import load_dotenv
 import csv
 
 # Load environment variables
-load_dotenv()
 
 def load_credentials():
     """Load credentials from AccessKey.csv file"""

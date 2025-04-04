@@ -139,7 +139,7 @@ Note
 
 ## Data Flow
 The tool fetches performance metrics from Alibaba Cloud Monitor service, processes the data to calculate utilization patterns, and generates visual reports. Below is the Alibaba Cloud Architecture diagram for two accounts (one account for generating the report+direct mail config, and another for the environment to be monitored)
-![alt text](Diagram/Architecture_Diagram.png)
+![alt text](diagram/Architecture_Diagram.png)
 
 Key Component Interactions:
 - Authentication using Alibaba Cloud credentials
